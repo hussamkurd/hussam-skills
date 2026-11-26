@@ -63,6 +63,10 @@ git -C hussam-skills pull                           # manual (copy again)
 
 Check what is installed with `npx skills list -g`.
 
+## License
+
+[MIT](LICENSE)
+
 ## Safety
 
 Skills run with your agent's permissions. Read a `SKILL.md` before you install it.

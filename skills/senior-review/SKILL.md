@@ -2,8 +2,9 @@
 name: senior-review
 description: "Read-only senior-engineer review of a branch or PR with a production-shipping lens: map what the change touches, verify it with evidence, check it against the project's own principles (SOLID, KISS, YAGNI, DRY, existing patterns, fail fast, low coupling, behaviour-first tests), and write down the exact changes needed before ship."
 disable-model-invocation: true
+license: MIT
 metadata:
-  version: 1.1.0
+  version: 1.1.1
 ---
 
 # Senior Review

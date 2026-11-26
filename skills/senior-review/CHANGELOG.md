@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Add the MIT license to the skill metadata.
+
 ## 1.1.0
 
 - Add four principles to step 4: follow existing patterns, fail fast with no silent failure, low coupling and high cohesion, test behaviour not implementation.
