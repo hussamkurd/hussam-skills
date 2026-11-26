@@ -1,262 +1,119 @@
 ---
 name: senior-review
-description: "Read-only senior-engineer review of a branch or PR with a production-shipping lens: map what the change touches, verify it with evidence, check it against the project's own principles (SOLID, KISS, YAGNI, DRY, existing patterns, fail fast, low coupling, behaviour-first tests), and write down the exact changes needed before ship."
+description: "Read-only senior review of a branch or PR before it ships. Parallel reviewers find what must change, the senior engineer decides on each finding, and the accepted ones become a spec any implementation skill can run."
 disable-model-invocation: true
 license: MIT
 metadata:
-  version: 1.1.1
+  version: 2.0.0
 ---
 
 # Senior Review
 
-You are a senior engineer reviewing a change that ships to production today. Your job is one question: **what exactly must change before this is safe and clean to ship?** Keep the review simple, tied to the project requirement, and short on suggestions.
+You review a change that ships to production today. The goal is one list: what must change before it is safe and clean to ship. The senior engineer decides on each item, and what they accept becomes a spec.
 
-The user calls this skill on purpose. Run the full review on whatever change they point at: a GitHub PR, a Bitbucket PR, or a branch with no PR at all. Do not stop to question whether the change is ready for review.
+Run the review on whatever the user points at: a GitHub PR, a Bitbucket PR, or a plain branch. Do not ask whether it is ready for review.
 
-## Ground rules
+## Rules for the whole run
 
-- **Read-only.** You read, run, and verify; every change you want becomes a finding in the review file, and a separate implementation applies it. The user's working tree stays exactly as you found it: run the change's code in a separate worktree (step 1).
-- **Review folder.** Everything you produce lives in `~/.agents/reviews/<repo>/<pr-or-branch>/` (e.g. `~/.agents/reviews/billing-api/pr-412/` or `~/.agents/reviews/billing-api/feature-ABC-12-export/`): the report `review.md`, screenshots, the visual page, and the worktree. It sits outside the repo, so none of it enters the change.
-- **Evidence.** Every claim that something works or does not work carries evidence you produced in this session:
-  - a command and the relevant lines of its output (test run, typecheck, query result, `curl` response, log line);
-  - a screenshot for UI and browser checks, saved in the review folder and referenced by path;
-  - a `file:line` quote for claims about what the code says.
+- **Read-only.** The user's working tree stays as you found it. Code runs in a separate worktree. Every change you want is a finding, not an edit.
+- **Review folder.** Everything goes in `~/.agents/reviews/<repo>/<pr-or-branch>/` (for example `~/.agents/reviews/billing-api/pr-412/`): `review.md`, `spec.md`, screenshots, and the worktree. It is outside the repo.
+- **Evidence.** A claim that something works or breaks needs proof from this session: a command and its output lines, a `file:line` quote, or a screenshot path. Without proof the claim is **unverified**: say why, and name the check that would settle it. Unverified never counts as working.
 
-  A claim you cannot back this way is marked ⚠️ **Unverified**, with the reason and the check that would settle it. Unverified never counts as working.
+## The finding
 
-## 1. Load the change and the requirement
+Every lane returns findings in this shape, and the decision step reads them as they are. Write the title as the change itself, verb first, so the reader knows what will happen from the title alone.
 
-- **Base branch**, in this order:
-  1. The base the user names, if any.
-  2. A GitHub PR for the current branch (`gh pr view --json baseRefName,number`) or the PR the user names: its base branch.
-  3. No PR, `origin/develop` exists, and the branch forks from it (its merge-base with `develop` is newer than its merge-base with the default branch): `develop`.
-  4. Otherwise the remote default branch (`git symbolic-ref refs/remotes/origin/HEAD`).
+```
+Title:      Add a 5 second timeout to the payment call
+Severity:   critical | code | trivial
+Where:      src/payments/client.ts:42
+Today:      fetch() has no timeout, so a slow provider holds the worker forever.
+Change:     - const res = await fetch(url)
+            + const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+Why:        Stops one slow provider from blocking every checkout.
+Evidence:   client.ts:42 quote, and the stub test: request still open after 60s.
+If skipped: Checkout hangs during any provider slowdown.
+```
 
-  The change set is `git diff $(git merge-base <base> HEAD)..HEAD`. For a GitHub PR the user names, `gh pr diff <n>` gives the same view. Bitbucket and other hosts need no API: the branch diff above is the change set.
-- **Committed changes only.** Run `git status --porcelain`. When there are staged, unstaged, or untracked files, review the commits anyway and put a warning at the top of the report: `⚠️ <n> uncommitted files not reviewed: <paths>`.
-- **Worktree**: `git worktree add ~/.agents/reviews/<repo>/<pr-or-branch>/worktree <head-sha>` (for a GitHub PR not checked out locally, `git fetch origin pull/<n>/head:review-<n>` first). Run every command of step 8 there.
-- **Requirement**, in this order:
-  1. The PR description, when there is a PR.
-  2. An issue key (like `ABC-123`) in the branch name or the commit messages: fetch that issue with an issue-tracker tool when one is connected (Jira, Linear, GitHub Issues).
-  3. Any spec the PR, commits, or issue reference.
+Severity:
 
-  When none is found, do not stop: continue the review, write `⚠️ no requirement found` under Requirement coverage, and cap Confidence at 🟡 Medium.
+- **critical**: production breaks, loses data, hangs, leaks, is insecure, misses the requirement, cannot be rolled back, or fails wide.
+- **code**: a principle the project follows is broken, the code is over-built, duplicated, or split up for no reason, or tests or logs are missing. A weak safety answer with a small blast radius lands here too.
+- **trivial**: churn, dead code, ticket keys or narration in comments, agent and working files added to the change.
 
-Done when you can state in two sentences what the change does and what the requirement asked for (or that no requirement was found), and you have recorded `Base: <branch> @ <short-sha>`.
+Keep a finding only when it fits one of these. Taste-level style and naming are not findings. A clean change with no findings is a fine result.
 
-## 2. Map the touched components
+## 1. Set up
 
-Assign every changed file to the components it touches:
+1. **Base branch.** The one the user names. Else the PR base (`gh pr view --json baseRefName,number`). Else `develop`, when `origin/develop` exists and the branch forks from it (its merge-base with `develop` is newer than with the default branch). Else the remote default branch (`git symbolic-ref refs/remotes/origin/HEAD`).
+2. **Change set.** `git diff $(git merge-base <base> HEAD)..HEAD`. For a named GitHub PR, `gh pr diff <n>` is the same view. Other hosts need no API.
+3. **Committed changes only.** If `git status --porcelain` shows anything, review the commits anyway and note at the top of the report: `uncommitted files not reviewed: <paths>`.
+4. **Worktree.** `git worktree add <review-folder>/worktree <head-sha>`. For a PR not checked out, `git fetch origin pull/<n>/head:review-<n>` first.
+5. **Requirement.** The PR description. Else the issue whose key (like `ABC-123`) is in the branch name or commits, fetched with an issue-tracker tool when one is connected. Also any spec those link to. If none is found, carry on and note `no requirement found`.
+6. **Component map.** Put every changed file in at least one component: Database, Infrastructure, I/O (HTTP, queues, cache, storage), API contract, Security, Core logic, Docs/files.
 
-| Component | Signals |
-|---|---|
-| 🗄️ Database | migrations, schema, queries, ORM models, indexes, transactions |
-| 🏗️ Infrastructure | IaC, Docker, CI/CD, deploy config, env vars, secrets, cron |
-| 🔌 I/O | HTTP clients, external APIs, queues, cache, file and object storage |
-| 📜 API contract | routes, request/response shapes, events, public types |
-| 🔐 Security | auth, permissions, input validation, secrets in code |
-| ⚙️ Core logic | everything else that is code |
-| 📄 Docs/files | `.md`, notes, plans, agent files, anything that is not code or config |
+Done when you can say in two sentences what the change does and what was asked, and you have `Base: <branch> @ <sha>`, `Head: <branch> @ <sha>`, the worktree path, and the component map.
 
-Read past the diff to the callers and callees of each touched component: the risk lives where the change meets existing code.
+## 2. Review in parallel
 
-Done when every changed file sits in at least one component.
+Start the four lanes at the same time, as subagents in one message (the Agent tool in Claude Code, or your harness's equivalent). Each lane has its own brief in `lanes/`. The lanes do not depend on each other.
 
-## 3. Review each touched component
-
-Apply only the rows for components the change touches:
-
-- **Database**: migration is safe on a large live table (locks, backfills, defaults); needed indexes exist; queries are bounded (no N+1, no unbounded scans); transactions cover multi-write steps; old and new code both run against the new schema during deploy.
-- **Infrastructure**: every new env var or secret is defined in each environment; resource limits, replicas and health checks are set; the deploy order works.
-- **I/O**: every outbound call has an explicit timeout; retries are bounded with backoff and the operation is idempotent; failures are handled and logged; connections and pools are sized and closed.
-- **API contract**: errors return documented status codes and shapes; any breaking change is versioned.
-- **Security**: authz checked on every new path; input validated; no secret or PII in code or logs.
-- **Core logic**: correct for the requirement, edge cases handled, errors surfaced.
-
-Every touched code component also needs tests that cover the new behaviour, and logs or metrics that would show it failing in production.
-
-## 4. Simplify and check the project's principles
-
-### 4a. Learn which principles the project follows
-
-Before judging design, find out what this project actually practises:
-
-1. **Written rules win.** Read `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, architecture docs or ADRs, and lint or formatter config.
-2. **Then the code around the change.** Look at how the touched modules are built: classes and interfaces or plain functions, injected dependencies or direct imports, one job per module or broad modules.
-3. Write one line for the report, naming the principles you will check and the ones that do not apply, with the source:
-   `Project principles: SRP, DRY, KISS, YAGNI, existing patterns, fail fast (AGENTS.md + code); OCP, DIP not used (no interfaces in touched modules)`
-
-The principles to consider:
-
-| Principle | What it asks of the change |
-|---|---|
-| **SOLID** (single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion) | Each unit has one job; contracts and subtypes stay valid for their callers |
-| **KISS** | The simplest code that works |
-| **YAGNI** | Nothing the requirement did not ask for |
-| **DRY** | One place for each piece of logic |
-| **Follow existing patterns** (least surprise) | Use the project's own error type, logger, HTTP client, config, folder layout, and naming; never a second way to do something the project already does |
-| **Fail fast, no silent failure** | Bad input stops early with a clear error; errors are raised or logged, never swallowed or turned into an empty default |
-| **Low coupling, high cohesion** (Law of Demeter) | New code talks to its direct neighbours only; related logic stays together |
-| **Test behaviour, not implementation** | Tests check inputs and outputs, not which private function was called; each test fails when the feature breaks |
-
-Follow existing patterns and fail fast apply to almost every project. Low coupling needs modules or objects to apply to; behaviour-first tests need the change to add or edit tests. Check only the principles the project follows; a principle the project does not use is never a finding.
-
-### 4b. Flag every violation the change introduces or makes worse
-
-Highlight every place where the change breaks a principle from 4a. Each one is a 🟠 Code finding and needs a `file:line` that shows the harm: the two duplicated blocks (DRY), the fourth job added to a function that already does three (SRP), the flag nobody asked for (YAGNI), the new `fetchWithRetry` next to the existing retrying `httpClient` (existing patterns), the `except Exception: return []` that hides a failed call (fail fast), the `order.customer.account.settings.currency` chain that reaches through four objects (low coupling), the test that mocks the code under test and only checks the mock was called (behaviour-first tests). A principle's name alone is not evidence.
-
-When principles pull in opposite directions, **KISS and YAGNI win**. A SOLID finding never asks for a new abstraction the change does not need: one caller does not need an interface. Raise SOLID when the change makes an existing design worse (a grown responsibility, a broken contract with many callers, a subtype that no longer fits its parent).
-
-### 4c. Simplify
-
-The target is the **smallest meaningful change** that meets the requirement: every changed line moves the feature forward. Hunt for:
-
-- **Over-engineered** (KISS, YAGNI): abstractions, interfaces, factories, or generics with one caller; flags, config, or features beyond what the requirement asked; layers that only forward a call; defensive checks for states that cannot happen.
-- **Duplicated** (DRY): the same logic written twice in the change, or copied from code that already exists.
-- **Fragmented**: one simple idea split across many small files, classes, or helpers, so reading it means jumping between pieces. Fold it back into one place.
-- **Churn**: renames, moves, reformatting, reordering, or unrelated refactors riding along. They go back out of the change.
-- **Dead weight**: unreachable code, unused params, imports, dependencies, debug leftovers (`console.log`, `print`, commented-out code).
-
-For each, write the simpler version: the fewest lines and files that keep the same behaviour.
-
-## 5. Production-clean check
-
-The shipped change carries code, config, tests, and the docs that describe the code (README, API docs, an operator's migration note). Everything else leaves the change:
-
-- **Ticket references in code**: comments, TODOs, test names, or identifiers carrying ticket keys (`ABC-123`), ticket links, or "added for ticket X". The ticket belongs in the branch name, commit, and PR description; the comment becomes a plain explanation of _why_ the code is the way it is, or goes.
-- **Narration comments**: comments that restate the code, describe the change history, or talk to a reviewer. Keep only comments that explain a non-obvious _why_.
-- **New agent and working files**: a `CLAUDE.md`, `AGENTS.md`, `.claude/`, `.codex/`, plan, spec, handoff, note, scratch script, or memory file that the change adds. It leaves the change. Edits to an agent file the base branch already tracks are team docs and are not a finding.
-
-## 6. Check against the requirement
-
-Mark every requirement point ✅ covered or ❌ **gap**. A gap is also a piece the feature cannot work without that no other step names (a missing migration, a handler never registered, a route never wired). With no requirement found, write `⚠️ no requirement found` and list what the change appears to do.
-
-Done when every requirement point is marked.
-
-## 7. Safety answers
-
-Answer these four from the code, config, and deploy setup. For a change with no behaviour change (docs or tests only), write "n/a: no behaviour change" and move on.
-
-- **↩️ Rollback**: how do we undo this once it is live: revert and redeploy, flip a flag, run a down migration? Name the exact action and whether it loses data (a dropped column or rewritten rows cannot be brought back by a code revert).
-- **🚦 Feature gate**: is the new behaviour behind a flag, config switch, or percentage rollout? Name it, its default, and what happens when it is off. When there is none, say whether the change needs one: risky, user-facing, or hard-to-revert changes do.
-- **🔒 Must not change**: existing API responses, data already stored, other consumers of the touched tables, queues, or events, behaviour for users outside the feature. Name each invariant and how you know it holds.
-- **💥 Blast radius**: when this fails in production, how far does it go: one request, one user, one tenant, one job, or the whole service? Does it fail open or closed, and does it cascade (retries piling up, a lock held, a queue backing up)?
-
-A missing or weak answer is a finding.
-
-## 8. Verify
-
-In the worktree, run the project's typecheck, linter, and the tests for the touched areas.
-
-Build a **throwaway environment** for this session only for these three triggers, and only when no existing test exercises the path:
-
-| Trigger | Throwaway check |
-|---|---|
-| New or changed migration | Temporary database container (`docker run postgres:…`) or SQLite file; run the migrations up **and** down, and the new queries with realistic data volume |
-| New outbound call (HTTP, queue, cache, storage) | Run the code locally against a stub of the service; make the stub slow and then failing, and watch the timeout and retry behaviour |
-| New or changed auth or permission check | Call the new path as a user who must be refused, and as one who must be allowed |
-
-Every other risky path without a test is marked ⚠️ **Unverified** with the check that would settle it; it lowers Confidence. Drive a browser for UI checks only when the user asks for it.
-
-Capture the evidence of each check as you run it. Tear down the containers, processes, and worktree when done (`git worktree remove`). When a risk can only be proven on real infrastructure (real data size, real network, real IAM), list the exact staging checks to run before production.
-
-## 9. Sort findings, score, and report
-
-Keep a finding only when production would break, lose data, hang, leak, miss the requirement, break a principle the project follows, or carry complexity and dead weight without it. Drop taste-level style and naming. Put every finding in exactly one part:
-
-- 🔴 **Critical**: production risk from steps 3, 6, or 7: breaks, loses data, hangs, leaks, insecure, a requirement gap, no rollback, or a wide blast radius. Must change before ship.
-- 🟠 **Code**: the code itself: a principle violation (step 4b), over-engineered, duplicated, or fragmented (step 4c), missing tests or observability (step 3), or a weak safety answer with a narrow blast radius (step 7). Changes before ship unless the user accepts it as a follow-up.
-- ⚪ **Trivial**: churn and dead weight (step 4c), and every production-clean hit (step 5). Quick removals.
-
-A clean change with zero findings is a valid result.
-
-**Verdict** follows from the findings: 🔴 **Do not ship** with any Critical; 🟡 **Ship after changes** with only Code or Trivial; 🟢 **Ship** with none.
-
-**Confidence** is how sure you are that the change, once its Critical findings are applied, runs correctly in production. Score it as a band, only from evidence:
-
-- 🟢 **High**: every risky path was exercised in step 8 and passed; requirement fully covered; rollback proven or trivially clear.
-- 🟡 **Medium**: core paths verified, some risk only reasoned about (an untested branch, a staging-only check, an unclear deploy order), or no requirement found.
-- 🔴 **Low**: key paths ⚠️ Unverified, or behaviour you could not reproduce.
-
-State what would lift it a band. Verdict and confidence are independent: 🟢 Ship with 🟡 Medium confidence means "nothing found, not fully proven".
-
-Write `review.md` in the review folder in this shape, and show it to the user:
-
-~~~
-## Senior Review: <PR title or branch name>
-
-Base: <branch> @ <short-sha>   Head: <branch> @ <short-sha>
-Project principles: <checked principles (source)>; <principles not used (why)>
-<⚠️ n uncommitted files not reviewed: paths   ← only when there are any>
-
-### Decision
-<filled in at step 10>
-
-### Summary
-<2–4 plain sentences: what the change does, the requirement, why the verdict>
-Verdict: 🟢 Ship | 🟡 Ship after changes | 🔴 Do not ship
-Confidence: 🟢 High | 🟡 Medium | 🔴 Low: <what it rests on; what would raise it>
-
-### Component map
-(one row per touched component; status = its worst finding: 🔴 / 🟠 / ⚪, or 🟢 none)
-🗄️ Database   🔴  <what changed, what it interacts with; findings ①>
-🔌 I/O        🟢  ...
-
-### Safety answers
-| Question | Answer | Evidence |
+| Lane | Brief | Looks at |
 |---|---|---|
-| ↩️ Rollback | <exact undo action; data loss yes/no> | ... |
-| 🚦 Feature gate | <flag + default, or "none" + needed yes/no> | ... |
-| 🔒 Must not change | <each invariant and how it holds> | ... |
-| 💥 Blast radius | <scope; fails open or closed; cascades?> | ... |
+| Risk | [lanes/risk.md](lanes/risk.md) | each risky component, the four safety answers |
+| Design | [lanes/design.md](lanes/design.md) | the project's principles, simpler shapes |
+| Scope | [lanes/scope.md](lanes/scope.md) | requirement coverage, what should not ship |
+| Verify | [lanes/verify.md](lanes/verify.md) | typecheck, lint, tests, throwaway checks |
 
-### Requirement coverage
-✅ <point>
-❌ <point> → finding <n>
-(or: ⚠️ no requirement found; the change appears to <...>)
+Give each subagent the same packet: the absolute path of its brief and of this file (for the finding shape), the base and head SHAs, the worktree path, the review folder, the diff command, the requirement text, and the component map. Tell it to stay read-only, quote its evidence, and return findings in the shape above.
 
-### Verification
-| Check | Result | Evidence |
-|---|---|---|
-| <what you ran> | ✅ pass / ❌ fail / ⚠️ unverified | <command + output lines, or screenshot path> |
-Staging checks before production: <exact checks, or "none needed">
+When the change is big (about 800 changed lines or more, or three or more risky components), split the Risk lane: one subagent per risky component, each told which component it owns.
 
-### Exact changes required
+With no subagents available, run the lanes yourself one after another. The output is the same.
 
-#### 🔴 Critical
-① <title>: `path/to/file.ext:line`
-   Why: <the production failure it prevents>
-   Evidence: <failing check output, screenshot path, or `file:line` quote>
-   Change:
-   ```diff
-   - old line
-   + new line
-   ```
+Done when every lane has returned.
 
-#### 🟠 Code
-② <title> [<principle, if any: SRP / DRY / YAGNI / existing patterns / fail fast / coupling / tests / ...>]: `path:line`
-   Why: <what is over-built, duplicated, or missing, and the simpler shape>
-   Evidence: ...
-   Change: <diff, or which files fold together>
+## 3. Merge
 
-#### ⚪ Trivial
-③ <title>: `path:line`: <one-line diff, or "drop file from the change">
+1. **Check every critical yourself.** Open the `file:line` and read the evidence. Drop or downgrade what does not hold up.
+2. **Merge duplicates.** Two lanes often find the same thing from two sides. Keep one finding with both pieces of evidence.
+3. **Write a recommendation** for each finding: accept, reject, or defer, with one plain reason. Critical with evidence: accept. Code: accept when the fix is small next to the harm, defer when it is a real but separate piece of work. Trivial: accept. Unverified: name the check that settles it, then recommend based on how likely the harm is.
+4. **Number the findings** in order: critical, then code, then trivial.
+5. **Verdict.** Do not ship with any critical. Ship after changes with only code or trivial. Ship with none.
+6. **Confidence**, from evidence only. High: every risky path ran and passed, the requirement is covered, rollback is clear. Medium: core paths ran, but some risk is only reasoned about, or no requirement was found. Low: key paths unverified. Say what would raise it one level.
 
-(write "none" under an empty part)
-~~~
+Write `review.md` in the review folder from [templates/review.md](templates/review.md).
 
-Done when every finding carries a `file:line`, its evidence (for Trivial, the `file:line` itself), and a concrete change: a diff, a file to drop, or an exact config value. The implementation must be able to apply it without re-deriving anything.
+Done when every finding has a `Where`, evidence or an unverified note, a concrete `Change`, and a recommendation.
 
-## 10. Show, decide, hand off
+## 4. Ask the senior engineer
 
-1. **Visual page.** Skip this when the change touches one component and has no 🔴 or 🟠 findings. Otherwise write `review.html` in the review folder: one self-contained file (inline CSS and SVG, no external scripts) that shows
-   - the request or data path through the touched components, with each changed node and each finding number marked on it;
-   - the before/after shape of each 🟠 Code simplification or principle fix (side by side: files and functions before, after).
+Each finding becomes one decision. First show the user the summary: verdict, confidence, and the numbered list of finding titles with their recommendation. Then offer a shortcut: take all recommendations, or go one by one.
 
-   Give the user its path.
-2. Ask the user how to move forward: which findings go to implementation (all, Critical only, a chosen list, or none), and whether the change ships. Stop until they answer.
-3. Write their answer under `### Decision` in `review.md`, and give them its path: it is ready for a separate implementation pass (another agent or session pointed at the review file).
+Going one by one, ask in batches of up to four, critical first (with AskUserQuestion in Claude Code, or as a plain numbered list elsewhere). Each question must stand on its own, because the user may see only the question:
+
+- **Question:** `#3 Add a 5 second timeout to the payment call (src/payments/client.ts:42). Apply it?`
+- **Options:** the recommended one first, marked `(Recommended)`, then the rest of: Accept, Reject, Defer to a follow-up.
+- **Option text:** what happens if they pick it, in one line. For Accept, show the change as a short before/after.
+
+The user can always type their own answer ("accept, but use 10 seconds"). Record it as accepted with their change.
+
+Write each answer into that finding's `Decision` line in `review.md`, with any note the user gave.
+
+Done when every finding has a decision.
+
+## 5. Write the spec
+
+Write `spec.md` in the review folder from [templates/spec.md](templates/spec.md). It is the hand-off: another session or any implementation skill (tdd, a plain coding agent) must be able to run it without reading `review.md` or the diff.
+
+- Each accepted finding is one task, with its exact change and a check that proves it is done.
+- Rejected findings go under "Do not change", with the user's reason, so the implementer leaves them alone.
+- Deferred findings go under "Follow-ups", one line each.
+
+Then clean up: stop any containers and processes still running, and `git worktree remove` the worktree. Give the user the paths of `review.md` and `spec.md`.
+
+Done when every finding appears in exactly one section of `spec.md`.
 
 ## Re-review
 
-When the user asks for a re-review after the implementation, run steps 1–10 on the updated change. In the new report, mark each earlier finding ✅ fixed (backed by fresh evidence: the check that showed the problem now passes), ⏭️ skipped, or ❌ still open, with the new verdict and confidence.
+When the user asks for a re-review after the spec was applied, run the whole review again on the new head. In the new `review.md`, mark each task from the old spec as fixed (with fresh evidence that its check now passes), still open, or skipped, and add any new findings. New findings go through step 4 again.

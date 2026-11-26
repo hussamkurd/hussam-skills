@@ -1,5 +1,5 @@
 interface:
   display_name: "Senior Review"
-  short_description: "Read-only production PR review that writes down exact changes before ship"
+  short_description: "Parallel read-only PR review; you decide on each finding, it writes the fix spec"
 policy:
   allow_implicit_invocation: false

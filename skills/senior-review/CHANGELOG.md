@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.0
+
+- Split the review into four parallel subagent lanes (risk, design, scope, verify), each with its own brief in `lanes/`. The risk lane splits per component on big changes.
+- One finding shape for every lane, with the title written as the change itself.
+- The main agent checks every critical finding, merges duplicates, and adds a recommendation to each.
+- New decision step: one standalone question per finding (accept, reject, defer, or the user's own change).
+- New `spec.md` hand-off: accepted findings as tasks with a "done when" check, rejected ones as "do not change", deferred ones as follow-ups.
+- Templates for `review.md` and `spec.md` moved to `templates/`.
+- Shorter, plainer wording; fewer emoji.
+- Removed the default `review.html` visual page.
+
 ## 1.1.1
 
 - Add the MIT license to the skill metadata.
