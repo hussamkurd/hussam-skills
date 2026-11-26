@@ -1,9 +1,9 @@
 ---
 name: senior-review
-description: "Read-only senior-engineer review of a branch or PR with a production-shipping lens: map what the change touches, verify it with evidence, check it against the project's own principles, and write down the exact changes needed before ship."
+description: "Read-only senior-engineer review of a branch or PR with a production-shipping lens: map what the change touches, verify it with evidence, check it against the project's own principles (SOLID, KISS, YAGNI, DRY, existing patterns, fail fast, low coupling, behaviour-first tests), and write down the exact changes needed before ship."
 disable-model-invocation: true
 metadata:
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Senior Review
@@ -83,13 +83,26 @@ Before judging design, find out what this project actually practises:
 1. **Written rules win.** Read `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, architecture docs or ADRs, and lint or formatter config.
 2. **Then the code around the change.** Look at how the touched modules are built: classes and interfaces or plain functions, injected dependencies or direct imports, one job per module or broad modules.
 3. Write one line for the report, naming the principles you will check and the ones that do not apply, with the source:
-   `Project principles: SRP, DRY, KISS, YAGNI (AGENTS.md + code); OCP, DIP not used (no interfaces in touched modules)`
+   `Project principles: SRP, DRY, KISS, YAGNI, existing patterns, fail fast (AGENTS.md + code); OCP, DIP not used (no interfaces in touched modules)`
 
-The principles to consider are **SOLID** (single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion), **KISS**, **YAGNI**, and **DRY**. Check only the ones the project follows; a principle the project does not use is never a finding.
+The principles to consider:
+
+| Principle | What it asks of the change |
+|---|---|
+| **SOLID** (single responsibility, open/closed, Liskov substitution, interface segregation, dependency inversion) | Each unit has one job; contracts and subtypes stay valid for their callers |
+| **KISS** | The simplest code that works |
+| **YAGNI** | Nothing the requirement did not ask for |
+| **DRY** | One place for each piece of logic |
+| **Follow existing patterns** (least surprise) | Use the project's own error type, logger, HTTP client, config, folder layout, and naming; never a second way to do something the project already does |
+| **Fail fast, no silent failure** | Bad input stops early with a clear error; errors are raised or logged, never swallowed or turned into an empty default |
+| **Low coupling, high cohesion** (Law of Demeter) | New code talks to its direct neighbours only; related logic stays together |
+| **Test behaviour, not implementation** | Tests check inputs and outputs, not which private function was called; each test fails when the feature breaks |
+
+Follow existing patterns and fail fast apply to almost every project. Low coupling needs modules or objects to apply to; behaviour-first tests need the change to add or edit tests. Check only the principles the project follows; a principle the project does not use is never a finding.
 
 ### 4b. Flag every violation the change introduces or makes worse
 
-Highlight every place where the change breaks a principle from 4a. Each one is a 🟠 Code finding and needs a `file:line` that shows the harm: the two duplicated blocks (DRY), the fourth job added to a function that already does three (SRP), the flag nobody asked for (YAGNI). A principle's name alone is not evidence.
+Highlight every place where the change breaks a principle from 4a. Each one is a 🟠 Code finding and needs a `file:line` that shows the harm: the two duplicated blocks (DRY), the fourth job added to a function that already does three (SRP), the flag nobody asked for (YAGNI), the new `fetchWithRetry` next to the existing retrying `httpClient` (existing patterns), the `except Exception: return []` that hides a failed call (fail fast), the `order.customer.account.settings.currency` chain that reaches through four objects (low coupling), the test that mocks the code under test and only checks the mock was called (behaviour-first tests). A principle's name alone is not evidence.
 
 When principles pull in opposite directions, **KISS and YAGNI win**. A SOLID finding never asks for a new abstraction the change does not need: one caller does not need an interface. Raise SOLID when the change makes an existing design worse (a grown responsibility, a broken contract with many callers, a subtype that no longer fits its parent).
 
@@ -220,7 +233,7 @@ Staging checks before production: <exact checks, or "none needed">
    ```
 
 #### 🟠 Code
-② <title> [<principle, if any: SRP / DRY / YAGNI / ...>]: `path:line`
+② <title> [<principle, if any: SRP / DRY / YAGNI / existing patterns / fail fast / coupling / tests / ...>]: `path:line`
    Why: <what is over-built, duplicated, or missing, and the simpler shape>
    Evidence: ...
    Change: <diff, or which files fold together>

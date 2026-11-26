@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0
+
+- Add four principles to step 4: follow existing patterns, fail fast with no silent failure, low coupling and high cohesion, test behaviour not implementation.
+- Each comes with an example of the harm a finding must show.
+
 ## 1.0.0
 
 - First public version.

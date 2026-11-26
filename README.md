@@ -8,7 +8,7 @@ Each skill is a plain `SKILL.md` folder. It works with Claude Code, Codex, Curso
 
 | Skill | Stage | What it does | Call it with |
 |---|---|---|---|
-| [senior-review](skills/senior-review) | Review · Test · Ship | Read-only review of a branch or PR before a production deploy. Maps what the change touches, checks the project's principles (SOLID, KISS, YAGNI, DRY), proves claims with evidence, and writes the exact change for every finding. | `/senior-review` |
+| [senior-review](skills/senior-review) | Review · Test · Ship | Read-only review of a branch or PR before a production deploy. Maps what the change touches, checks the project's principles (SOLID, KISS, YAGNI, DRY, existing patterns, fail fast, low coupling, behaviour-first tests), proves claims with evidence, and writes the exact change for every finding. | `/senior-review` |
 
 ## Install
 

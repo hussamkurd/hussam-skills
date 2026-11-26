@@ -6,7 +6,7 @@ A read-only agent skill that reviews a branch or pull request the way a senior e
 
 - Works on a GitHub PR, a Bitbucket PR, or a branch with no PR (diffs against the PR base, `develop`, or the default branch).
 - Maps the change to components (database, infrastructure, I/O, API contract, security, core logic, docs) and reviews each one.
-- Learns the principles the project follows (SOLID, KISS, YAGNI, DRY) and flags the violations with evidence.
+- Learns the principles the project follows (SOLID, KISS, YAGNI, DRY, existing patterns, fail fast, low coupling, behaviour-first tests) and flags the violations with evidence.
 - Checks the change against its requirement (PR description or linked issue).
 - Answers four safety questions: rollback, feature gate, invariants, blast radius.
 - Verifies claims by running typecheck, lint, and tests in a separate git worktree, plus throwaway environments for migrations, outbound calls, and auth changes.
