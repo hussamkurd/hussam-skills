@@ -1,0 +1,14 @@
+{
+  "name": "hussam-skills",
+  "owner": { "name": "hussamkurd" },
+  "metadata": {
+    "description": "Skills that help engineers build, review, test, and ship products with AI, with confidence."
+  },
+  "plugins": [
+    {
+      "name": "hussam-skills",
+      "source": "./",
+      "description": "Senior-engineer skills for building, reviewing, testing, and shipping with AI."
+    }
+  ]
+}
