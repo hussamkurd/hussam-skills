@@ -1,6 +1,6 @@
 # Risk lane
 
-You check whether the change is safe to run in production. You are read-only: you read code in the worktree you were given and return findings. Another lane runs the tests; you may run small read-only commands (grep, a query plan, reading config).
+You check whether the change is safe to run in production. You are read-only: you read code in the worktree you were given and return findings. Another lane runs the tests; you may run small read-only commands (grep, reading config).
 
 Read past the diff to the callers and callees of each touched component. The risk lives where the change meets existing code.
 
@@ -31,7 +31,7 @@ A missing or weak answer is a finding: critical when the blast radius is wide or
 ## Return
 
 1. The four safety answers, each with its evidence.
-2. Your findings, in the shape from the main skill.
+2. Your findings, in the shape from finding.md.
 3. Risky paths that need a real run to prove, so the main agent can match them with the Verify lane.
 
 Done when every component you own has been checked against its list and all four safety answers are written.

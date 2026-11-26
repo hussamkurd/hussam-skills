@@ -52,6 +52,6 @@ For each, write the simpler version as the finding's `Change`: the fewest lines 
 ## Return
 
 1. The project principles line.
-2. Your findings, in the shape from the main skill.
+2. Your findings, in the shape from finding.md.
 
 Done when every principle on your line has been checked against every touched module, and every finding has the simpler version written out.

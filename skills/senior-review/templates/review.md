@@ -10,13 +10,15 @@ Project principles: <from the Design lane>
 
 Verdict: Ship | Ship after changes | Do not ship
 Confidence: High | Medium | Low. <What it rests on. What would raise it.>
+Decision: ship | hold. <n> accepted, <n> rejected, <n> deferred. <user's note>
+Codex gate: no | yes. <user's note, scope or change>
 
 ## Components
 
-| Component | Worst finding | What changed and what it touches |
-|---|---|---|
-| Database | critical #1 | ... |
-| I/O | none | ... |
+| Component | Worst finding | Recommendation | What changed and what it touches |
+|---|---|---|---|
+| Database | critical #1 | apply #1 | ... |
+| I/O | none | ship as is | ... |
 
 ## Safety answers
 
@@ -42,6 +44,11 @@ Confidence: High | Medium | Low. <What it rests on. What would raise it.>
 
 Staging checks before production: <exact checks, or none needed>
 
+## Previous spec (re-review only)
+
+| Task | fixed / still open / skipped | Evidence |
+|---|---|---|
+
 ## Findings
 
 ### Critical
@@ -57,13 +64,14 @@ Staging checks before production: <exact checks, or none needed>
   ```
 - Why: <the failure it prevents>
 - Evidence: <output, quote, or screenshot path; or unverified + the check that settles it>
+- Check: <command, test or grep that passes once the change is in>
 - If skipped: <what happens>
 - Recommendation: Accept | Reject | Defer. <one reason>
 - Decision: <filled in at step 4, with the user's note>
 
 ### Code
 
-#### #2 <Title> [<principle, if any>]
+#### #2 <Title>
 
 <same fields>
 

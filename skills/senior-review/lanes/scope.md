@@ -23,6 +23,6 @@ The shipped change carries code, config, tests, and the docs that describe the c
 ## Return
 
 1. The coverage list: each point, covered or gap.
-2. Your findings, in the shape from the main skill.
+2. Your findings, in the shape from finding.md.
 
 Done when every requirement point is marked and every changed file has been read for the five kinds above.

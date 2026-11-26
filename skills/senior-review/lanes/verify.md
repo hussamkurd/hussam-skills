@@ -32,6 +32,6 @@ Tear down every container and process you started.
 
 1. The checks table: check, pass / fail / unverified, evidence.
 2. Staging checks to run before production, or "none needed".
-3. A finding, in the shape from the main skill, for each failing check.
+3. A finding, in the shape from finding.md, for each failing check.
 
 Done when every check you ran has its evidence, and everything you started is stopped.

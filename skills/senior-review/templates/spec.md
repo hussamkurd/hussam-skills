@@ -14,7 +14,7 @@ Source: <path to review.md>
 
 ## Tasks
 
-Do them in order. Critical first. Each task is independent unless it says otherwise.
+Do them in order. Each task is independent unless it says otherwise.
 
 ### 1. <Title: the change, verb first>   (from review #<n>, critical)
 
@@ -25,8 +25,8 @@ Do them in order. Critical first. Each task is independent unless it says otherw
   + new
   ```
   <Or, for a larger change, the exact shape: which functions move where, what the new signature is.>
-- User's note: <only when they changed the recommendation>
-- Done when: <a check anyone can run: a test name that now passes, a command and its expected output, a grep that returns nothing>
+- User's note: <only when they edited the change; Change above already includes it>
+- Done when: <the finding's Check>
 
 ### 2. ...
 
@@ -34,16 +34,23 @@ Do them in order. Critical first. Each task is independent unless it says otherw
 
 Findings the reviewer raised and the senior engineer rejected. Leave them as they are.
 
-- <Title> (`path:line`): <the user's reason>
+- <Title> (`path:line`): <the user's reason, else the recommendation's reason>
 
 ## Follow-ups
 
-Accepted as real but out of this change. Not part of this work.
+Accepted as real, but left for separate work.
 
 - <Title> (`path:line`): <one line>
+
+## Codex gate
+
+<No: "Do not run codex-gate for this spec."  Yes: "Run codex-gate after the tasks, before you commit or report done." Add the user's scope or change, if any.>
 
 ## Finished when
 
 - Every task's "Done when" check passes.
 - <The project's typecheck, lint, and test commands> pass.
 - Nothing under "Do not change" was touched.
+- If "Codex gate" says yes, codex-gate approved the change.
+
+<Write "none" under an empty section.>
